@@ -1,0 +1,24 @@
+bin
+obj
+.vscode
+
+# temp
+appsettings.json
+
+# NuGet packages
+packages/
+*.nupkg
+*.suo
+*.user
+*.opensdf
+*.sdf
+*.db
+*.cache
+*.bin
+*.obj
+*.vs/
+
+.NET/UserSecrets/
+
+**/temp/
+**/cache/
