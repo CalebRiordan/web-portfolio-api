@@ -9,15 +9,9 @@ namespace WebPortfolioApi.Controllers;
 [ApiController]
 [Route("/api/[controller]")]
 
-public class MessagesController : ControllerBase
+public class MessagesController(WebfolioDbContext context) : ControllerBase
 {
-    private WebfolioDbContext _context;
-
-    public MessagesController(WebfolioDbContext context)
-    {
-        //inject database context
-        _context = context;
-    }
+    private readonly WebfolioDbContext _context = context;
 
     [HttpGet]
     public async Task<IActionResult> getAllMessages()

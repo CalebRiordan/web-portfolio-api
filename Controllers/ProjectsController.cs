@@ -1,5 +1,4 @@
 using Azure;
-using Azure.Storage;
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
@@ -13,19 +12,19 @@ namespace WebPortfolioApi.Controllers;
 
 [ApiController]
 [Route("/api/[controller]")]
-
-public class ProjectsController : ControllerBase
+public class ProjectsController(
+    WebfolioDbContext context,
+    BlobServiceClient blob,
+    ILogger<ProjectsController> logger
+) : ControllerBase
 {
+    private readonly WebfolioDbContext _context = context;
+    private readonly BlobServiceClient _blob = blob;
+    public readonly ILogger<ProjectsController> _logger = logger;
 
-    private WebfolioDbContext _context;
-    private BlobServiceClient _blob;
-    public readonly ILogger<ProjectsController> _logger;
-
-    public ProjectsController(WebfolioDbContext context, BlobServiceClient blob, ILogger<ProjectsController> logger)
+    private BlobContainerClient ImagesBlobClient
     {
-        _context = context;
-        _blob = blob;
-        _logger = logger;
+        get { return _blob.GetBlobContainerClient("images"); }
     }
 
     //Returns project data of project with specified ID
@@ -38,15 +37,13 @@ public class ProjectsController : ControllerBase
         Project? project = await _context.Projects.FindAsync(id);
 
         if (project == null)
-        {
             return NotFound();
-        }
 
         //Generate SAS token for blob
-        BlobContainerClient imagesClient = _blob.GetBlobContainerClient("images");
-        BlobContainerSasPermissions permissions = BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
+        BlobContainerSasPermissions permissions =
+            BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
         DateTimeOffset expiryTime = DateTimeOffset.UtcNow.AddHours(1);
-        Uri sasUri = imagesClient.GenerateSasUri(permissions, expiryTime);
+        Uri sasUri = ImagesBlobClient.GenerateSasUri(permissions, expiryTime);
         string sasToken = sasUri.Query;
 
         //append SAS token to blob URL
@@ -59,16 +56,18 @@ public class ProjectsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> getAllProjectsAsync()
     {
-        //generate SAS token to be used to authenticate access to all blobs in "images" container
-        BlobContainerClient imagesClient = _blob.GetBlobContainerClient("images");
-        BlobContainerSasPermissions permissions = BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
+        // generate SAS token to be used to authenticate access to all blobs in "images" container
+        BlobContainerSasPermissions permissions =
+            BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
         DateTimeOffset expiryTime = DateTimeOffset.UtcNow.AddHours(1);
-        Uri sasUri = imagesClient.GenerateSasUri(permissions, expiryTime);
+        Uri sasUri = ImagesBlobClient.GenerateSasUri(permissions, expiryTime);
         string sasToken = sasUri.Query;
 
-        List<ProjectDto> projectDtos = new() { };
+        List<ProjectDto> projectDtos = [];
         //Append SAS token to URL of every blob retrieved
-        projectDtos = await _context.Projects.Select(project => project.asProjectDtoWithSasToken(sasToken)).ToListAsync();
+        projectDtos = await _context
+            .Projects.Select(project => project.asProjectDtoWithSasToken(sasToken))
+            .ToListAsync();
 
         return Ok(projectDtos);
     }
@@ -76,7 +75,10 @@ public class ProjectsController : ControllerBase
     //Adds a new project with provided data to the azure database
     [HttpPost]
     [Route("{projNum}")]
-    public async Task<IActionResult> createProjectWithImageAsync([FromRoute] int projNum, [FromForm] CreateProjectModel model)
+    public async Task<IActionResult> createProjectWithImageAsync(
+        [FromRoute] int projNum,
+        [FromForm] CreateProjectModel model
+    )
     {
         //create project ID
         string id = "proj-" + projNum;
@@ -96,7 +98,7 @@ public class ProjectsController : ControllerBase
             DateCompleted = model.DateCompleted,
             ThumbnailUrl = "",
             GithubUrl = model.GithubUrl,
-            DemoUrl = model.DemoUrl
+            DemoUrl = model.DemoUrl,
         };
 
         try
@@ -106,7 +108,7 @@ public class ProjectsController : ControllerBase
             {
                 //Upload the image to azure blob storage
                 string blobName = id + "-thumbnail";
-                BlobContainerClient imagesClient = _blob.GetBlobContainerClient("images");
+                var imagesClient = ImagesBlobClient;
                 await imagesClient.UploadBlobAsync(blobName, model.Thumbnail.OpenReadStream());
 
                 //Retrieve URL of uploaded image
@@ -129,7 +131,10 @@ public class ProjectsController : ControllerBase
     //Updates existing project specified by ID with values from the provided project object
     [HttpPut]
     [Route("{projNum}")]
-    public async Task<IActionResult> updateProjectAsync([FromRoute] int projNum, [FromForm] CreateProjectModel model)
+    public async Task<IActionResult> updateProjectAsync(
+        [FromRoute] int projNum,
+        [FromForm] CreateProjectModel model
+    )
     {
         //replicate project ID
         string id = "proj-" + projNum;
@@ -139,11 +144,12 @@ public class ProjectsController : ControllerBase
         {
             return NotFound();
         }
-        
+
         //If the thumbnail must be updated:
-        if (model.Thumbnail != null){
+        if (model.Thumbnail != null)
+        {
             string blobName = id + "-thumbnail";
-            BlobClient blobClient = _blob.GetBlobContainerClient("images").GetBlobClient(blobName);
+            BlobClient blobClient = ImagesBlobClient.GetBlobClient(blobName);
 
             try
             {
@@ -165,7 +171,7 @@ public class ProjectsController : ControllerBase
             //Therefore we can just use the already-existing one
             ThumbnailUrl = project.ThumbnailUrl,
             GithubUrl = model.GithubUrl,
-            DemoUrl = model.DemoUrl
+            DemoUrl = model.DemoUrl,
         };
 
         _context.Entry(project).CurrentValues.SetValues(updatedProject);
@@ -192,8 +198,7 @@ public class ProjectsController : ControllerBase
         if (project.ThumbnailUrl != "")
         {
             string blobName = id + "-thumbnail";
-            BlobContainerClient imagesClient = _blob.GetBlobContainerClient("images");
-            BlobClient blobClient = imagesClient.GetBlobClient(blobName);
+            BlobClient blobClient = ImagesBlobClient.GetBlobClient(blobName);
             await blobClient.DeleteIfExistsAsync(DeleteSnapshotsOption.IncludeSnapshots);
         }
 

@@ -1,4 +1,3 @@
-using Azure.Storage.Blobs;
 using Microsoft.EntityFrameworkCore;
 using WebPortfolioApi.data;
 
@@ -11,20 +10,16 @@ builder.Services.AddSwaggerGen();
 
 // Configure Database Context
 builder.Services.AddDbContext<WebfolioDbContext>(options =>
-    {
-        string? connectionString = builder.Configuration.GetConnectionString("AZURE_SQL_CONNECTIONSTRING");
+{
+    string? connectionString =
+        builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? throw new ApplicationException("Connection string is null.");
+    options.UseNpgsql(connectionString);
+});
 
-        if (connectionString != null)
-        {
-            options.UseSqlServer(connectionString);
-            return;
-        }
-
-        throw new ApplicationException("Connection string is null.");
-    }
-);
-
-builder.Services.AddSingleton(sp => new BlobServiceClient(builder.Configuration.GetConnectionString("AZURE_STRGACC_CONNECTIONSTRING")));
+// builder.Services.AddSingleton(sp => new BlobServiceClient(
+//     builder.Configuration.GetConnectionString("AZURE_STRGACC_CONNECTIONSTRING")
+// ));
 
 builder.Services.AddLogging(builder =>
 {
@@ -34,10 +29,10 @@ builder.Services.AddLogging(builder =>
 var allowedOrigin = builder.Configuration["CORS:AllowedOrigins"]!;
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAngularOrigin", builder => builder
-        .WithOrigins(allowedOrigin)
-        .AllowAnyMethod()
-        .AllowAnyHeader());
+    options.AddPolicy(
+        "AllowAngularOrigin",
+        builder => builder.WithOrigins(allowedOrigin).AllowAnyMethod().AllowAnyHeader()
+    );
 });
 
 var app = builder.Build();

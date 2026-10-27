@@ -3,15 +3,10 @@ using WebPortfolioApi.Models;
 
 namespace WebPortfolioApi.data;
 
-public class WebfolioDbContext: DbContext
+public class WebfolioDbContext(DbContextOptions options) : DbContext(options)
 {
     //'Projects' table -> represents 'dbo.Projects' in Azure
     public DbSet<Project> Projects {get; set;}
     public DbSet<Message> Messages {get; set;}
-
-    public WebfolioDbContext(DbContextOptions options): base(options)
-    {        
-    }
-
 }
 

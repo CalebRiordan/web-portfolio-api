@@ -2,8 +2,8 @@ bin
 obj
 .vscode
 
-# temp
 appsettings.json
+appsettings.Development.json
 
 # NuGet packages
 packages/
