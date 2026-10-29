@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Supabase;
 using WebPortfolioApi.data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,9 +18,14 @@ builder.Services.AddDbContext<WebfolioDbContext>(options =>
     options.UseNpgsql(connectionString);
 });
 
-// builder.Services.AddSingleton(sp => new BlobServiceClient(
-//     builder.Configuration.GetConnectionString("AZURE_STRGACC_CONNECTIONSTRING")
-// ));
+var url = builder.Configuration["Supabase:Url"]!;
+var key = builder.Configuration["Supabase:Key"]!;
+builder.Services.AddSingleton(provider =>
+{
+    var client = new Client(url, key, new SupabaseOptions { AutoConnectRealtime = false });
+    client.InitializeAsync().Wait();
+    return client;
+});
 
 builder.Services.AddLogging(builder =>
 {

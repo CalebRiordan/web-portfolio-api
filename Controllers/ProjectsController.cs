@@ -4,6 +4,9 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Identity.Client.Extensions.Msal;
+using Supabase;
+using Supabase.Storage.Interfaces;
 using WebPortfolioApi.data;
 using WebPortfolioApi.Dtos;
 using WebPortfolioApi.Models;
@@ -14,17 +17,17 @@ namespace WebPortfolioApi.Controllers;
 [Route("/api/[controller]")]
 public class ProjectsController(
     WebfolioDbContext context,
-    BlobServiceClient blob,
+    Client blob,
     ILogger<ProjectsController> logger
 ) : ControllerBase
 {
     private readonly WebfolioDbContext _context = context;
-    private readonly BlobServiceClient _blob = blob;
+    private readonly Client _blob = blob;
     public readonly ILogger<ProjectsController> _logger = logger;
 
-    private BlobContainerClient ImagesBlobClient
+    private IStorageFileApi<Supabase.Storage.FileObject> ImagesBucket
     {
-        get { return _blob.GetBlobContainerClient("images"); }
+        get { return _blob.Storage.From("images"); }
     }
 
     //Returns project data of project with specified ID
@@ -40,11 +43,14 @@ public class ProjectsController(
             return NotFound();
 
         //Generate SAS token for blob
-        BlobContainerSasPermissions permissions =
-            BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
-        DateTimeOffset expiryTime = DateTimeOffset.UtcNow.AddHours(1);
-        Uri sasUri = ImagesBlobClient.GenerateSasUri(permissions, expiryTime);
-        string sasToken = sasUri.Query;
+        // BlobContainerSasPermissions permissions =
+        //     BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
+        // DateTimeOffset expiryTime = DateTimeOffset.UtcNow.AddHours(1);
+        // Uri sasUri = ImagesBlobClient.GenerateSasUri(permissions, expiryTime);
+        // string sasToken = sasUri.Query;
+
+        int expiresIn = 3600; // 1 hour
+        string signedUrl = ImagesBucket.CreateSignedUrl()
 
         //append SAS token to blob URL
         ProjectDto projectDto = project.asProjectDtoWithSasToken(sasToken);
