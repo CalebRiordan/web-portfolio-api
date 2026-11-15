@@ -4,12 +4,12 @@ using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Identity.Client.Extensions.Msal;
+using PanChatApi.Services;
 using Supabase;
-using Supabase.Storage.Interfaces;
 using WebPortfolioApi.data;
 using WebPortfolioApi.Dtos;
 using WebPortfolioApi.Models;
+using WebPortfolioApi.Services;
 
 namespace WebPortfolioApi.Controllers;
 
@@ -17,18 +17,13 @@ namespace WebPortfolioApi.Controllers;
 [Route("/api/[controller]")]
 public class ProjectsController(
     WebfolioDbContext context,
-    Client blob,
+    IFileStorageService<ImagesBucket> storage,
     ILogger<ProjectsController> logger
 ) : ControllerBase
 {
     private readonly WebfolioDbContext _context = context;
-    private readonly Client _blob = blob;
+    private readonly IFileStorageService<ImagesBucket> _storage = storage;
     public readonly ILogger<ProjectsController> _logger = logger;
-
-    private IStorageFileApi<Supabase.Storage.FileObject> ImagesBucket
-    {
-        get { return _blob.Storage.From("images"); }
-    }
 
     //Returns project data of project with specified ID
     [HttpGet]
@@ -37,43 +32,28 @@ public class ProjectsController(
     {
         //replicate project ID
         string id = "proj-" + projNum.ToString();
-        Project? project = await _context.Projects.FindAsync(id);
+        Project? project = await _context
+            .Projects.AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
 
         if (project == null)
             return NotFound();
 
-        //Generate SAS token for blob
-        // BlobContainerSasPermissions permissions =
-        //     BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
-        // DateTimeOffset expiryTime = DateTimeOffset.UtcNow.AddHours(1);
-        // Uri sasUri = ImagesBlobClient.GenerateSasUri(permissions, expiryTime);
-        // string sasToken = sasUri.Query;
-
-        int expiresIn = 3600; // 1 hour
-        string signedUrl = ImagesBucket.CreateSignedUrl()
-
         //append SAS token to blob URL
-        ProjectDto projectDto = project.asProjectDtoWithSasToken(sasToken);
-
-        return Ok(projectDto);
+        project.ThumbnailUrl = await _storage.GetUrlAsync(project.ThumbnailUrl);
+        return Ok(project);
     }
 
     //Returns a list of all projects
     [HttpGet]
     public async Task<IActionResult> getAllProjectsAsync()
     {
-        // generate SAS token to be used to authenticate access to all blobs in "images" container
-        BlobContainerSasPermissions permissions =
-            BlobContainerSasPermissions.Read | BlobContainerSasPermissions.List;
-        DateTimeOffset expiryTime = DateTimeOffset.UtcNow.AddHours(1);
-        Uri sasUri = ImagesBlobClient.GenerateSasUri(permissions, expiryTime);
-        string sasToken = sasUri.Query;
-
-        List<ProjectDto> projectDtos = [];
         //Append SAS token to URL of every blob retrieved
-        projectDtos = await _context
-            .Projects.Select(project => project.asProjectDtoWithSasToken(sasToken))
-            .ToListAsync();
+        var projects = await _context.Projects.ToListAsync();
+        List<string> urls = [.. projects.Select(p => p.ThumbnailUrl)];
+        var safeUrls = await _storage.GetUrlsAsync(urls);
+        // projects.
+
 
         return Ok(projectDtos);
     }

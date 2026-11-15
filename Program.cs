@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using PanChatApi.Services;
 using Supabase;
 using WebPortfolioApi.data;
+using WebPortfolioApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,20 +14,24 @@ builder.Services.AddSwaggerGen();
 // Configure Database Context
 builder.Services.AddDbContext<WebfolioDbContext>(options =>
 {
-    string? connectionString =
+    string connectionString =
         builder.Configuration.GetConnectionString("DefaultConnection")
         ?? throw new ApplicationException("Connection string is null.");
     options.UseNpgsql(connectionString);
 });
 
-var url = builder.Configuration["Supabase:Url"]!;
-var key = builder.Configuration["Supabase:Key"]!;
 builder.Services.AddSingleton(provider =>
 {
-    var client = new Client(url, key, new SupabaseOptions { AutoConnectRealtime = false });
+    var client = new Client(
+        builder.Configuration["Supabase:Url"]!,
+        builder.Configuration["Supabase:Key"]!,
+        new SupabaseOptions { AutoConnectRealtime = false }
+    );
     client.InitializeAsync().Wait();
     return client;
 });
+
+builder.Services.AddScoped(typeof(IFileStorageService<>), typeof(SupabaseStorageService<>));
 
 builder.Services.AddLogging(builder =>
 {
