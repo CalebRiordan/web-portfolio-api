@@ -1,4 +1,5 @@
 using Azure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PanChatApi.Services;
@@ -60,6 +61,7 @@ public class ProjectsController(
     //Adds a new project with provided data to the azure database
     [HttpPost]
     [Route("{projNum}")]
+    [Authorize]
     public async Task<ActionResult<Project>> CreateProjectWithImageAsync(
         [FromRoute] int projNum,
         [FromForm] CreateProjectModel model
@@ -108,6 +110,7 @@ public class ProjectsController(
     //Updates existing project specified by ID with values from the provided project object
     [HttpPut]
     [Route("{projNum}")]
+    [Authorize]
     public async Task<ActionResult<Project>> UpdateProjectAsync(
         [FromRoute] int projNum,
         [FromForm] CreateProjectModel model
@@ -154,6 +157,7 @@ public class ProjectsController(
     //Deletes data of a project specified by ID
     [HttpDelete]
     [Route("{projNum}")]
+    [Authorize]
     public async Task<IActionResult> DeleteProjectAsync([FromRoute] int projNum)
     {
         //Replicate project ID

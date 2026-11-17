@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using WebPortfolioApi.data;
@@ -14,6 +15,7 @@ public class MessagesController(WebfolioDbContext context) : ControllerBase
     private readonly WebfolioDbContext _context = context;
 
     [HttpGet]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> getAllMessages()
     {
         List<Message> messages = await _context.Messages.ToListAsync();
@@ -21,6 +23,7 @@ public class MessagesController(WebfolioDbContext context) : ControllerBase
     }
 
     [HttpPost]
+    [AllowAnonymous]
     public async Task<IActionResult> addNewMessage([FromBody] MessageDto messageDto)
     {
         Message message = new()
@@ -39,6 +42,7 @@ public class MessagesController(WebfolioDbContext context) : ControllerBase
 
     [HttpDelete]
     [Route("{id}")]
+    [Authorize(Policy = "AdminOnly")]
     public async Task<IActionResult> deleteMessage([FromRoute] Guid id)
     {
         Message? message = await _context.Messages.FindAsync(id);
