@@ -17,25 +17,18 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// JWT Auth
-var jwtKey =
-    builder.Configuration["Jwt:Key"]
-    ?? throw new InvalidOperationException("JWT Key not configured");
-
-builder
-    .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+builder.Services.AddAuthentication("AdminCookie")
+    .AddCookie("AdminCookie", options =>
     {
-        options.TokenValidationParameters = new TokenValidationParameters
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Strict;
+        options.ExpireTimeSpan = TimeSpan.FromDays(3);
+        options.Events.OnRedirectToLogin = ctx => // return 401 instead of redirect
         {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-            ValidateIssuer = false,
-            ValidateAudience = false,
-            ClockSkew = TimeSpan.Zero,
+            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
         };
     });
-
 builder.Services.AddAuthorization();
 
 // Controllers
